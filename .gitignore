@@ -1,0 +1,10 @@
+.theos/
+packages/
+.DS_Store
+*.deb
+obj/
+.theos_obj/
+*.o
+*.dylib
+.debmake/
+_/
