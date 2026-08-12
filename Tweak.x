@@ -493,11 +493,6 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
         [className containsString:@"Account"]) {
         
         FSLog(@"📺 发现设置相关页面: %@", className);
-        
-        // 尝试添加设置入口按钮
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [self addAutoStatusSettingsEntry];
-        });
     }
 }
 
@@ -606,7 +601,11 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 // 手动触发状态更新（用于调试）
 void updateStatusManually() {
     FSLog(@"🔧 [调试] 手动触发状态更新");
-    updateStatus();
+    if (currentEnabled) {
+        updateStatus();
+    } else {
+        FSLog(@"⚠️ 自动状态未启用");
+    }
 }
 
 // 析构函数

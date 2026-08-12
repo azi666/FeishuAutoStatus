@@ -248,6 +248,10 @@
 - (void)triggerStatusChange {
     [self appendLog:@"[调试] 手动触发状态切换"];
     
+    // 调用 Tweak.x 中的函数
+    extern void updateStatusManually(void);
+    updateStatusManually();
+    
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"已触发"
                                                                    message:@"已手动触发一次状态切换\n请查看飞书是否更新状态"
                                                             preferredStyle:UIAlertControllerStyleAlert];
