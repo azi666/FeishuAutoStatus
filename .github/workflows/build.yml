@@ -15,13 +15,47 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Install dependencies
+      run: |
+        brew install ldid make perl rsync
+        # 安装 dpkg (用于打包 .deb)
+        brew install dpkg
+
     - name: Setup Theos
-      uses: joeycastillo/theos-action@main
-      with:
-        sdk-version: "16.5"
+      run: |
+        # 克隆 Theos 到 /opt/theos
+        sudo mkdir -p /opt/theos
+        sudo chown -R $(whoami) /opt/theos
+        git clone --recursive https://github.com/theos/theos.git /opt/theos
+
+        # 设置环境变量
+        echo "THEOS=/opt/theos" >> "$GITHUB_ENV"
+        echo "THEOS_PACKAGE_SCHEME=rootless" >> "$GITHUB_ENV"
+
+        # 将环境变量写入 .bashrc 供后续步骤使用
+        echo 'export THEOS=/opt/theos' >> ~/.bashrc
+        echo 'export THEOS_PACKAGE_SCHEME=rootless' >> ~/.bashrc
+
+    - name: Setup iOS SDK
+      run: |
+        # Theos 需要 iOS SDK, 尝试从 Theos 的 sdks 仓库获取
+        cd /opt/theos
+        git clone --recursive https://github.com/theos/sdks.git sdks 2>/dev/null || true
+
+        # 检查可用的 SDK
+        ls -la /opt/theos/sdks/ || true
+
+        # 如果没有 SDK, 尝试下载 iPhoneOS SDK
+        if [ ! -d "/opt/theos/sdks/iPhoneOS15.0.sdk" ]; then
+          echo "⚠️ iPhoneOS15.0.sdk not found, checking alternatives..."
+          ls /opt/theos/sdks/ 2>/dev/null || echo "No sdks directory"
+        fi
 
     - name: Build
       run: |
+        export THEOS=/opt/theos
+        export THEOS_PACKAGE_SCHEME=rootless
+        export PATH="$THEOS/bin:$PATH"
         make package FINALPACKAGE=1
         ls -lh packages/
 
