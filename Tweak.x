@@ -491,60 +491,85 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 - (void)openAutoStatusSettings;
 @end
 
-// 启动时扫描所有与状态相关的类
+// 启动时扫描所有与状态相关的类（安全版本，使用@try-@catch）
 static void scanFeishuClasses() {
-    FSLog(@"========== 开始扫描飞书类 ==========");
-    
-    unsigned int count = 0;
-    Class *classes = objc_copyClassList(&count);
-    
-    NSMutableArray *statusClasses = [NSMutableArray array];
-    
-    for (unsigned int i = 0; i < count; i++) {
-        Class cls = classes[i];
-        const char *className = class_getName(cls);
-        NSString *name = [NSString stringWithUTF8String:className];
+    @try {
+        FSLog(@"========== 开始扫描飞书类 ==========");
         
-        // 搜索与状态相关的类
-        if ([name containsString:@"Status"] ||
-            [name containsString:@"Custom"] ||
-            [name containsString:@"Presence"] ||
-            [name containsString:@"DND"] ||
-            [name containsString:@"Meeting"] ||
-            [name containsString:@"Rest"] ||
-            [name containsString:@"Disturb"]) {
-            [statusClasses addObject:name];
-            
-            // 获取类的所有方法
-            unsigned int methodCount = 0;
-            Method *methods = class_copyMethodList(cls, &methodCount);
-            NSMutableArray *methodNames = [NSMutableArray array];
-            
-            for (unsigned int j = 0; j < methodCount; j++) {
-                SEL selector = method_getName(methods[j]);
-                NSString *methodName = NSStringFromSelector(selector);
+        unsigned int count = 0;
+        Class *classes = objc_copyClassList(&count);
+        
+        NSMutableArray *statusClasses = [NSMutableArray array];
+        int foundCount = 0;
+        int maxResults = 20; // 限制最多输出20个类，避免日志过多
+        
+        for (unsigned int i = 0; i < count && foundCount < maxResults; i++) {
+            @try {
+                Class cls = classes[i];
+                if (!cls) continue;
                 
-                // 只记录包含set/update/change的方法
-                if ([methodName containsString:@"set"] ||
-                    [methodName containsString:@"update"] ||
-                    [methodName containsString:@"change"] ||
-                    [methodName containsString:@"apply"] ||
-                    [methodName containsString:@"select"]) {
-                    [methodNames addObject:methodName];
+                const char *className = class_getName(cls);
+                if (!className) continue;
+                
+                NSString *name = [NSString stringWithUTF8String:className];
+                if (!name || name.length == 0) continue;
+                
+                // 只扫描明确的飞书类（避免扫描系统类）
+                if (![name hasPrefix:@"LK"] && 
+                    ![name hasPrefix:@"Lark"] &&
+                    ![name containsString:@"Feishu"]) {
+                    continue;
                 }
+                
+                // 搜索与状态相关的类
+                if ([name containsString:@"Status"] ||
+                    [name containsString:@"Custom"] ||
+                    [name containsString:@"Presence"]) {
+                    
+                    [statusClasses addObject:name];
+                    
+                    // 获取类的所有方法
+                    unsigned int methodCount = 0;
+                    Method *methods = class_copyMethodList(cls, &methodCount);
+                    NSMutableArray *methodNames = [NSMutableArray array];
+                    
+                    for (unsigned int j = 0; j < methodCount && methodNames.count < 10; j++) {
+                        @try {
+                            SEL selector = method_getName(methods[j]);
+                            if (!selector) continue;
+                            
+                            NSString *methodName = NSStringFromSelector(selector);
+                            if (!methodName) continue;
+                            
+                            // 只记录包含set/update的关键方法
+                            if ([methodName hasPrefix:@"set"] ||
+                                [methodName hasPrefix:@"update"] ||
+                                [methodName containsString:@"Status"]) {
+                                [methodNames addObject:methodName];
+                            }
+                        } @catch (NSException *e) {
+                            // 忽略单个方法的错误
+                        }
+                    }
+                    
+                    if (methodNames.count > 0) {
+                        FSLog(@"[类] %@", name);
+                        FSLog(@"  [方法] %@", [methodNames componentsJoinedByString:@", "]);
+                        foundCount++;
+                    }
+                    
+                    if (methods) free(methods);
+                }
+            } @catch (NSException *e) {
+                // 忽略单个类的错误，继续扫描
             }
-            
-            if (methodNames.count > 0) {
-                FSLog(@"[类] %@", name);
-                FSLog(@"  [方法] %@", [methodNames componentsJoinedByString:@", "]);
-            }
-            
-            free(methods);
         }
+        
+        if (classes) free(classes);
+        FSLog(@"========== 扫描完成，共找到 %d 个相关类 ==========", foundCount);
+    } @catch (NSException *e) {
+        FSLog(@"❌ 扫描过程出错: %@", e.reason);
     }
-    
-    free(classes);
-    FSLog(@"========== 扫描完成，共找到 %lu 个相关类 ==========", (unsigned long)statusClasses.count);
 }
 
 // Hook所有可能的ViewController来监控状态界面并注入设置入口
