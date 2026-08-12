@@ -58,6 +58,13 @@ static NSMutableDictionary *discoveredInfo = nil;
 static Class discoveredStatusClass = nil;
 static id discoveredStatusManager = nil;
 
+// 函数前置声明
+static void loadPreferences(void);
+static void switchToNextStatus(void);
+static void startTimer(void);
+static void stopTimer(void);
+static void updateStatusManually(void);
+
 // 检查是否在工作时间
 static BOOL isWorkTime() {
     BOOL workTimeEnabled = [preferences[kWorkTimeEnabledKey] boolValue];
@@ -616,7 +623,7 @@ static void updateStatusManually() {
     BOOL enabled = [preferences[kEnabledKey] boolValue];
     
     if (enabled) {
-        updateStatusFromTimer(nil);
+        switchToNextStatus();
     } else {
         FSLog(@"⚠️ 自动状态未启用");
     }
