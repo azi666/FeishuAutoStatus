@@ -491,6 +491,26 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 - (void)openAutoStatusSettings;
 @end
 
+// Hook NSObject来捕获所有方法调用（用于调试）
+%hook NSObject
+
+- (id)forwardInvocation:(NSInvocation *)invocation {
+    NSString *className = NSStringFromClass([self class]);
+    NSString *selectorName = NSStringFromSelector([invocation selector]);
+    
+    // 只记录可能与状态相关的调用
+    if ([className containsString:@"Status"] || 
+        [className containsString:@"Custom"] ||
+        [selectorName containsString:@"status"] ||
+        [selectorName containsString:@"Status"]) {
+        FSLog(@"[方法调用] %@.%@", className, selectorName);
+    }
+    
+    return %orig;
+}
+
+%end
+
 // Hook所有可能的ViewController来监控状态界面并注入设置入口
 %hook UIViewController
 
