@@ -53,6 +53,8 @@ static BOOL isWorkTime() {
     }
     
     NSCalendar *calendar = [NSCalendar currentCalendar];
+    NSTimeZone *chinaTimeZone = [NSTimeZone timeZoneWithName:@"Asia/Shanghai"];
+    [calendar setTimeZone:chinaTimeZone];
     NSDate *now = [NSDate date];
     NSDateComponents *components = [calendar components:(NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitWeekday) fromDate:now];
     
