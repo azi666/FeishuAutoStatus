@@ -15,7 +15,7 @@ BUNDLE_NAME = FeishuAutoStatusPrefs
 
 FeishuAutoStatusPrefs_FILES = feishuautostatusprefs/FeishuAutoStatusPrefs.m
 FeishuAutoStatusPrefs_INSTALL_PATH = /Library/PreferenceBundles
-FeishuAutoStatusPrefs_FRAMEWORKS = UIKit Preferences
+FeishuAutoStatusPrefs_FRAMEWORKS = UIKit
 FeishuAutoStatusPrefs_PRIVATE_FRAMEWORKS = Preferences
 FeishuAutoStatusPrefs_CFLAGS = -fobjc-arc
 FeishuAutoStatusPrefs_RESOURCE_DIRS = feishuautostatusprefs/Resources
