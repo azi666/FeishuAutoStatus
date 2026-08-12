@@ -5,7 +5,7 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = FeishuAutoStatus
 
-FeishuAutoStatus_FILES = Tweak.x
+FeishuAutoStatus_FILES = Tweak.x SettingsViewController.m
 FeishuAutoStatus_CFLAGS = -fobjc-arc -Wno-arc-performSelector-leaks
 FeishuAutoStatus_FRAMEWORKS = UIKit Foundation
 
