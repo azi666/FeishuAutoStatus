@@ -264,11 +264,11 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
     id manager = nil;
     SEL sharedSelector = NSSelectorFromString(@"sharedInstance");
     if ([statusClass respondsToSelector:sharedSelector]) {
-        manager = [statusClass performSelector:sharedSelector];
+        manager = ((id (*)(id, SEL))objc_msgSend)(statusClass, sharedSelector);
     } else {
         sharedSelector = NSSelectorFromString(@"shared");
         if ([statusClass respondsToSelector:sharedSelector]) {
-            manager = [statusClass performSelector:sharedSelector];
+            manager = ((id (*)(id, SEL))objc_msgSend)(statusClass, sharedSelector);
         }
     }
     
@@ -321,7 +321,7 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
         SEL selector = NSSelectorFromString(methodName);
         if ([manager respondsToSelector:selector]) {
             NSLog(@"[FeishuAutoStatus] ✅ 调用方法: %@ dict=%@", methodName, statusDict);
-            [manager performSelector:selector withObject:statusDict];
+            ((void (*)(id, SEL, id))objc_msgSend)(manager, selector, statusDict);
             return;
         }
     }
