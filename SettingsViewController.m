@@ -5,16 +5,17 @@
 #import <Preferences/PSListController.h>
 #import <Preferences/PSSpecifier.h>
 
-@interface FSAutoStatusSettingsViewController ()
-@property (nonatomic, strong) NSMutableArray<NSString *> *logs;
-@property (nonatomic, strong) UITextView *logTextView;
+@interface FSAutoStatusSettingsViewController () {
+    NSMutableArray<NSString *> *_logs;
+    UITextView *_logTextView;
+}
 @end
 
 @implementation FSAutoStatusSettingsViewController
 
 - (instancetype)init {
     if (self = [super init]) {
-        self.logs = [NSMutableArray array];
+        self->_logs = [NSMutableArray array];
     }
     return self;
 }
@@ -37,14 +38,14 @@
     
     // 创建日志显示区域（占下半部分）
     CGFloat logHeight = screenHeight - tableHeight;
-    self.logTextView = [[UITextView alloc] initWithFrame:CGRectMake(0, tableHeight, 
+    self->_logTextView = [[UITextView alloc] initWithFrame:CGRectMake(0, tableHeight, 
                                                                      self.view.bounds.size.width, 
                                                                      logHeight)];
-    self.logTextView.font = [UIFont fontWithName:@"Menlo" size:10];
-    self.logTextView.editable = NO;
-    self.logTextView.backgroundColor = [UIColor colorWithWhite:0.95 alpha:1.0];
-    self.logTextView.text = @"=== 调试日志 ===\n";
-    [self.view addSubview:self.logTextView];
+    self->_logTextView.font = [UIFont fontWithName:@"Menlo" size:10];
+    self->_logTextView.editable = NO;
+    self->_logTextView.backgroundColor = [UIColor colorWithWhite:0.95 alpha:1.0];
+    self->_logTextView.text = @"=== 调试日志 ===\n";
+    [self.view addSubview:self->_logTextView];
     
     // 导航栏按钮
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] 
@@ -225,7 +226,7 @@
 }
 
 - (void)exportLogs {
-    if (!self.logs || self.logs.count == 0) {
+    if (!self->_logs || self->_logs.count == 0) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"无日志"
                                                                        message:@"当前没有可导出的日志"
                                                                 preferredStyle:UIAlertControllerStyleAlert];
@@ -234,7 +235,7 @@
         return;
     }
     
-    NSString *logContent = [self.logs componentsJoinedByString:@"\n"];
+    NSString *logContent = [self->_logs componentsJoinedByString:@"\n"];
     
     UIActivityViewController *activityVC = [[UIActivityViewController alloc] 
                                            initWithActivityItems:@[logContent] 
@@ -268,8 +269,8 @@
 #pragma mark - 日志管理
 
 - (void)appendLog:(NSString *)log {
-    if (!self.logs) {
-        self.logs = [NSMutableArray array];
+    if (!self->_logs) {
+        self->_logs = [NSMutableArray array];
     }
     
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
@@ -277,23 +278,23 @@
     NSString *timestamp = [formatter stringFromDate:[NSDate date]];
     
     NSString *logEntry = [NSString stringWithFormat:@"[%@] %@", timestamp, log];
-    [self.logs addObject:logEntry];
+    [self->_logs addObject:logEntry];
     
     // 保持最多100条日志
-    if (self.logs.count > 100) {
-        [self.logs removeObjectAtIndex:0];
+    if (self->_logs.count > 100) {
+        [self->_logs removeObjectAtIndex:0];
     }
     
     // 更新UI
-    if (self.logTextView) {
+    if (self->_logTextView) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSString *allLogs = [self.logs componentsJoinedByString:@"\n"];
-            self.logTextView.text = allLogs;
+            NSString *allLogs = [self->_logs componentsJoinedByString:@"\n"];
+            self->_logTextView.text = allLogs;
             
             // 滚动到底部
-            if (self.logTextView.text.length > 0) {
-                NSRange bottom = NSMakeRange(self.logTextView.text.length - 1, 1);
-                [self.logTextView scrollRangeToVisible:bottom];
+            if (self->_logTextView.text.length > 0) {
+                NSRange bottom = NSMakeRange(self->_logTextView.text.length - 1, 1);
+                [self->_logTextView scrollRangeToVisible:bottom];
             }
         });
     }
