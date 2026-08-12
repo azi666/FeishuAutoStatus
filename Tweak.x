@@ -491,25 +491,61 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 - (void)openAutoStatusSettings;
 @end
 
-// Hook NSObject来捕获所有方法调用（用于调试）
-%hook NSObject
-
-- (id)forwardInvocation:(NSInvocation *)invocation {
-    NSString *className = NSStringFromClass([self class]);
-    NSString *selectorName = NSStringFromSelector([invocation selector]);
+// 启动时扫描所有与状态相关的类
+static void scanFeishuClasses() {
+    FSLog(@"========== 开始扫描飞书类 ==========");
     
-    // 只记录可能与状态相关的调用
-    if ([className containsString:@"Status"] || 
-        [className containsString:@"Custom"] ||
-        [selectorName containsString:@"status"] ||
-        [selectorName containsString:@"Status"]) {
-        FSLog(@"[方法调用] %@.%@", className, selectorName);
+    unsigned int count = 0;
+    Class *classes = objc_copyClassList(&count);
+    
+    NSMutableArray *statusClasses = [NSMutableArray array];
+    
+    for (unsigned int i = 0; i < count; i++) {
+        Class cls = classes[i];
+        const char *className = class_getName(cls);
+        NSString *name = [NSString stringWithUTF8String:className];
+        
+        // 搜索与状态相关的类
+        if ([name containsString:@"Status"] ||
+            [name containsString:@"Custom"] ||
+            [name containsString:@"Presence"] ||
+            [name containsString:@"DND"] ||
+            [name containsString:@"Meeting"] ||
+            [name containsString:@"Rest"] ||
+            [name containsString:@"Disturb"]) {
+            [statusClasses addObject:name];
+            
+            // 获取类的所有方法
+            unsigned int methodCount = 0;
+            Method *methods = class_copyMethodList(cls, &methodCount);
+            NSMutableArray *methodNames = [NSMutableArray array];
+            
+            for (unsigned int j = 0; j < methodCount; j++) {
+                SEL selector = method_getName(methods[j]);
+                NSString *methodName = NSStringFromSelector(selector);
+                
+                // 只记录包含set/update/change的方法
+                if ([methodName containsString:@"set"] ||
+                    [methodName containsString:@"update"] ||
+                    [methodName containsString:@"change"] ||
+                    [methodName containsString:@"apply"] ||
+                    [methodName containsString:@"select"]) {
+                    [methodNames addObject:methodName];
+                }
+            }
+            
+            if (methodNames.count > 0) {
+                FSLog(@"[类] %@", name);
+                FSLog(@"  [方法] %@", [methodNames componentsJoinedByString:@", "]);
+            }
+            
+            free(methods);
+        }
     }
     
-    return %orig;
+    free(classes);
+    FSLog(@"========== 扫描完成，共找到 %lu 个相关类 ==========", (unsigned long)statusClasses.count);
 }
-
-%end
 
 // Hook所有可能的ViewController来监控状态界面并注入设置入口
 %hook UIViewController
@@ -639,6 +675,11 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
     @autoreleasepool {
         FSLog(@"🎯 插件已加载");
         loadPreferences();
+        
+        // 启动后延迟2秒扫描类（等待飞书完全加载）
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            scanFeishuClasses();
+        });
         
         // 监听偏好设置变化
         CFNotificationCenterAddObserver(
