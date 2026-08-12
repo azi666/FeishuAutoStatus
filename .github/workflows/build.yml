@@ -24,6 +24,8 @@ jobs:
           brew install dpkg
 
       - name: 🔧 Setup Theos
+        env:
+          TZ: Asia/Shanghai
         run: |
           sudo mkdir -p /opt/theos
           sudo chown -R $(whoami) /opt/theos
@@ -47,6 +49,8 @@ jobs:
           head -20 Tweak.x
 
       - name: 🏗️ Build tweak
+        env:
+          TZ: Asia/Shanghai
         run: |
           export THEOS=/opt/theos
           export THEOS_PACKAGE_SCHEME=rootless
