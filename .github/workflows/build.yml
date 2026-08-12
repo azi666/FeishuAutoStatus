@@ -46,9 +46,20 @@ jobs:
       run: |
         set -e
         mkdir -p $THEOS/sdks
-        curl -sL https://github.com/theos/sdks/releases/download/master/iPhoneOS16.5.sdk.tar.xz \
-          | tar -xJf - -C $THEOS/sdks/
-        ls $THEOS/sdks/
+        # 使用theos官方sdk仓库
+        curl -sL "https://github.com/theos/sdks/archive/refs/heads/master.tar.gz" \
+          | tar -xzf - --strip-components=1 -C $THEOS/sdks/ '*/iPhoneOS16.5.sdk' || true
+        # 备用方案：使用Procursus SDK
+        if [ ! -d "$THEOS/sdks/iPhoneOS16.5.sdk" ]; then
+          curl -sL "https://github.com/theos/sdks/releases/latest/download/iPhoneOS16.5.sdk.tar.xz" \
+            | tar -xJf - -C $THEOS/sdks/ || true
+        fi
+        # 再备用：直接下载整个sdks目录
+        if [ ! -d "$THEOS/sdks/iPhoneOS"*.sdk ]; then
+          git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
+          mv /tmp/theos-sdks/iPhoneOS*.sdk $THEOS/sdks/ || true
+        fi
+        ls -la $THEOS/sdks/
 
     - name: Build
       run: |
