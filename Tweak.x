@@ -17,6 +17,7 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import <objc/message.h>
 
 // 偏好设置键
 #define kPreferencesPath @"/var/mobile/Library/Preferences/com.yourname.feishuautostatus.plist"
