@@ -1,0 +1,66 @@
+name: Build iOS Tweak
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - name: 📥 Checkout代码
+      uses: actions/checkout@v3
+    
+    - name: 🔧 安装Theos
+      run: |
+        echo "正在安装Theos..."
+        export THEOS=/opt/theos
+        sudo git clone --recursive https://github.com/theos/theos.git $THEOS
+        
+    - name: 🔨 编译插件
+      run: |
+        export THEOS=/opt/theos
+        export PATH="$THEOS/bin:$PATH"
+        
+        echo "开始编译..."
+        make clean
+        make package
+        
+        echo "编译完成！"
+        ls -lh packages/
+    
+    - name: 📦 上传deb包
+      uses: actions/upload-artifact@v3
+      with:
+        name: FeishuAutoStatus-deb
+        path: packages/*.deb
+        retention-days: 30
+    
+    - name: 🎉 创建Release（仅tag触发）
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: packages/*.deb
+        body: |
+          ## 飞书自动状态切换插件
+          
+          ### 安装方法
+          1. 下载.deb文件
+          2. 用Filza打开并安装
+          3. 重启SpringBoard: `killall -9 SpringBoard`
+          
+          ### 配置文件
+          `/var/mobile/Library/Preferences/com.yourname.feishuautostatus.plist`
+          
+          ### 查看日志
+          ```bash
+          log stream --predicate 'processImagePath contains "Lark"' | grep FeishuAutoStatus
+          ```
+          
+          技术支持：查看README.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

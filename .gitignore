@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+*.swp
+*.swo
+
+# Theos
+.theos/
+packages/
+obj/
+.debmake/
+
+# Xcode
+*.xcuserstate
+*.xcworkspace
+xcuserdata/
+
+# 临时文件
+*.log
+*.tmp
+*~
+
+# 大文件 - 不推送到GitHub
+*.ipa
+*.xz
+FeishuApp/
+frida-server-*.xz
+frida-portal-*.xz
+Feishu_*.ipa
+feishu_analysis_quick.txt
+user_status_api_analysis.txt

@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<!-- 标题 -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>飞书自动状态切换</string>
+			<key>footerText</key>
+			<string>自动定时切换飞书在线状态，防止长时间离开显示离线</string>
+		</dict>
+		
+		<!-- 启用开关 -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>enabled</string>
+			<key>label</key>
+			<string>启用插件</string>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<!-- 时间间隔设置 -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>切换间隔</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>default</key>
+			<integer>3600</integer>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>interval</string>
+			<key>validValues</key>
+			<array>
+				<integer>300</integer>
+				<integer>600</integer>
+				<integer>1800</integer>
+				<integer>3600</integer>
+				<integer>7200</integer>
+			</array>
+			<key>validTitles</key>
+			<array>
+				<string>5分钟</string>
+				<string>10分钟</string>
+				<string>30分钟</string>
+				<string>1小时</string>
+				<string>2小时</string>
+			</array>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<!-- 工作时间设置 -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>工作时间设置</string>
+			<key>footerText</key>
+			<string>启用后，在工作时间外（包括周末）自动设置为休息状态</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>workTimeEnabled</string>
+			<key>label</key>
+			<string>启用工作时间判断</string>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>上班时间</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>default</key>
+			<integer>8</integer>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>workStartHour</string>
+			<key>label</key>
+			<string>开始小时</string>
+			<key>validValues</key>
+			<array>
+				<integer>6</integer>
+				<integer>7</integer>
+				<integer>8</integer>
+				<integer>9</integer>
+				<integer>10</integer>
+			</array>
+			<key>validTitles</key>
+			<array>
+				<string>6:00</string>
+				<string>7:00</string>
+				<string>8:00</string>
+				<string>9:00</string>
+				<string>10:00</string>
+			</array>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>workStartMinute</string>
+			<key>label</key>
+			<string>开始分钟</string>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>15</integer>
+				<integer>30</integer>
+				<integer>45</integer>
+			</array>
+			<key>validTitles</key>
+			<array>
+				<string>00</string>
+				<string>15</string>
+				<string>30</string>
+				<string>45</string>
+			</array>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>下班时间</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>default</key>
+			<integer>17</integer>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>workEndHour</string>
+			<key>label</key>
+			<string>结束小时</string>
+			<key>validValues</key>
+			<array>
+				<integer>16</integer>
+				<integer>17</integer>
+				<integer>18</integer>
+				<integer>19</integer>
+				<integer>20</integer>
+			</array>
+			<key>validTitles</key>
+			<array>
+				<string>16:00</string>
+				<string>17:00</string>
+				<string>18:00</string>
+				<string>19:00</string>
+				<string>20:00</string>
+			</array>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>default</key>
+			<integer>30</integer>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>workEndMinute</string>
+			<key>label</key>
+			<string>结束分钟</string>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>15</integer>
+				<integer>30</integer>
+				<integer>45</integer>
+			</array>
+			<key>validTitles</key>
+			<array>
+				<string>00</string>
+				<string>15</string>
+				<string>30</string>
+				<string>45</string>
+			</array>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>非工作时间状态</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>default</key>
+			<string>休息中 🌙</string>
+			<key>defaults</key>
+			<string>com.yourname.feishuautostatus</string>
+			<key>key</key>
+			<string>offWorkStatus</string>
+			<key>label</key>
+			<string>状态文本</string>
+			<key>placeholder</key>
+			<string>输入非工作时间的状态</string>
+			<key>PostNotification</key>
+			<string>com.yourname.feishuautostatus/ReloadPrefs</string>
+		</dict>
+		
+		<!-- 预设状态列表 -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>工作时间状态</string>
+			<key>footerText</key>
+			<string>在工作时间内循环切换以下状态：在线、忙碌、会议中、请勿打扰</string>
+		</dict>
+		
+		<!-- 关于 -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>关于</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>重新加载设置</string>
+			<key>action</key>
+			<string>reloadPreferences:</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>版本</string>
+			<key>value</key>
+			<string>1.0.0</string>
+		</dict>
+		
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>© 2024 FeishuAutoStatus - 保持飞书状态活跃</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>飞书自动状态</string>
+</dict>
+</plist>

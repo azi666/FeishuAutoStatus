@@ -1,0 +1,11 @@
+Package: com.yourname.feishuautostatus
+Name: FeishuAutoStatus
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: 飞书定时自动切换在线状态插件
+ 自动在工作时间定时切换飞书状态，支持自定义状态列表和切换间隔。
+ 基于Android逆向分析结果开发，智能适配iOS版本。
+Maintainer: Your Name <your.email@example.com>
+Author: Your Name <your.email@example.com>
+Section: Tweaks
+Depends: mobilesubstrate, firmware (>= 13.0)
