@@ -9,11 +9,23 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq \
+          build-essential \
+          fakeroot \
+          dpkg-dev \
+          ldid \
+          xz-utils \
+          curl \
+          git
 
     - name: Install Theos
       run: |
@@ -23,16 +35,20 @@ jobs:
         echo "THEOS=$THEOS" >> $GITHUB_ENV
         echo "$THEOS/bin" >> $GITHUB_PATH
 
-    - name: Install iOS SDK
+    - name: Download iOS SDK
       run: |
         set -e
-        wget -q https://github.com/theos/sdks/releases/download/master/iPhoneOS16.5.sdk.tar.xz
-        tar xf iPhoneOS16.5.sdk.tar.xz -C $THEOS/sdks/
+        mkdir -p $THEOS/sdks
+        curl -sL https://github.com/theos/sdks/releases/download/master/iPhoneOS16.5.sdk.tar.xz \
+          | tar -xJf - -C $THEOS/sdks/
+        ls $THEOS/sdks/
 
     - name: Build
       run: |
         set -e
-        make package FINALPACKAGE=1
+        export THEOS=~/theos
+        export PATH="$THEOS/bin:$PATH"
+        make package FINALPACKAGE=1 2>&1
         ls -lh packages/
 
     - name: Upload deb
