@@ -22,10 +22,17 @@ jobs:
           build-essential \
           fakeroot \
           dpkg-dev \
-          ldid \
           xz-utils \
           curl \
-          git
+          git \
+          clang \
+          lld
+
+    - name: Install ldid
+      run: |
+        curl -sL https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64 -o /usr/local/bin/ldid
+        chmod +x /usr/local/bin/ldid
+        ldid 2>/dev/null || true
 
     - name: Install Theos
       run: |
