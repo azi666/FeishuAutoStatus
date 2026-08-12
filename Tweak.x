@@ -609,10 +609,14 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 }
 
 // 手动触发状态更新（用于调试）
-void updateStatusManually() {
+static void updateStatusManually() {
     FSLog(@"🔧 [调试] 手动触发状态更新");
-    if (currentEnabled) {
-        updateStatus();
+    
+    loadPreferences();
+    BOOL enabled = [preferences[kEnabledKey] boolValue];
+    
+    if (enabled) {
+        updateStatusFromTimer(nil);
     } else {
         FSLog(@"⚠️ 自动状态未启用");
     }
