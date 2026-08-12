@@ -485,6 +485,12 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 
 %end
 
+// 为UIViewController添加方法声明
+@interface UIViewController (FeishuAutoStatus)
+- (void)addAutoStatusSettingsEntry;
+- (void)openAutoStatusSettings;
+@end
+
 // Hook所有可能的ViewController来监控状态界面并注入设置入口
 %hook UIViewController
 
