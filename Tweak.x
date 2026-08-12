@@ -117,12 +117,6 @@ static void loadPreferences() {
     }
 }
 
-// 保存偏好设置
-static void savePreferences() {
-    if (preferences) {
-        [preferences writeToFile:kPreferencesPath atomically:YES];
-    }
-}
 
 // 切换到下一个状态
 static void switchToNextStatus() {
