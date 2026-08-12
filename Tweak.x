@@ -18,6 +18,14 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
+#import "SettingsViewController.h"
+
+// 日志宏
+#define FSLog(fmt, ...) do { \
+    NSString *log = [NSString stringWithFormat:fmt, ##__VA_ARGS__]; \
+    NSLog(@"[FeishuAutoStatus] %@", log); \
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"FeishuAutoStatusLog" object:log]; \
+} while(0)
 
 // 偏好设置键
 #define kPreferencesPath @"/var/mobile/Library/Preferences/com.yourname.feishuautostatus.plist"
@@ -44,6 +52,11 @@ static NSTimer *statusTimer = nil;
 static NSMutableDictionary *preferences = nil;
 static NSArray *statusList = nil;
 static NSInteger currentStatusIndex = 0;
+
+// 发现的关键信息
+static NSMutableDictionary *discoveredInfo = nil;
+static Class discoveredStatusClass = nil;
+static id discoveredStatusManager = nil;
 
 // 检查是否在工作时间
 static BOOL isWorkTime() {
@@ -79,7 +92,7 @@ static BOOL isWorkTime() {
     
     BOOL inWorkTime = (currentTotalMinutes >= workStartTotalMinutes && currentTotalMinutes < workEndTotalMinutes);
     
-    NSLog(@"[FeishuAutoStatus] 当前时间: %02ld:%02ld, 工作时间: %02ld:%02ld-%02ld:%02ld, %@",
+    FSLog(@"当前时间: %02ld:%02ld, 工作时间: %02ld:%02ld-%02ld:%02ld, %@",
           (long)currentHour, (long)currentMinute,
           (long)workStartHour, (long)workStartMinute,
           (long)workEndHour, (long)workEndMinute,
@@ -135,7 +148,7 @@ static void switchToNextStatus() {
             @"emoji": @"🌙"
         };
         
-        NSLog(@"[FeishuAutoStatus] 非工作时间，设置为: %@", offWorkStatus);
+        FSLog(@"非工作时间，设置为: %@", offWorkStatus);
         
         [[NSNotificationCenter defaultCenter] postNotificationName:@"FeishuAutoStatusChanged"
                                                             object:nil
@@ -152,7 +165,7 @@ static void switchToNextStatus() {
     NSString *statusText = status[@"text"];
     NSString *emoji = status[@"emoji"];
     
-    NSLog(@"[FeishuAutoStatus] 切换状态到: %@ %@", emoji, statusText);
+    FSLog(@"切换状态到: %@ %@", emoji, statusText);
     
     // 发送状态更新通知
     [[NSNotificationCenter defaultCenter] postNotificationName:@"FeishuAutoStatusChanged"
@@ -210,6 +223,10 @@ static void stopTimer() {
 
 // 运行时查找真实的类名
 static Class findStatusManagerClass() {
+    if (discoveredStatusClass) {
+        return discoveredStatusClass;
+    }
+    
     // 基于Android分析，iOS可能的类名
     NSArray *possibleClasses = @[
         @"LKCustomStatusManager",
@@ -217,22 +234,31 @@ static Class findStatusManagerClass() {
         @"LKUserCustomStatusManager",
         @"UserCustomStatusManager",
         @"LKStatusManager",
-        @"StatusManager"
+        @"StatusManager",
+        @"TTKCustomStatusManager",
+        @"AWECustomStatusManager"
     ];
     
     for (NSString *className in possibleClasses) {
         Class cls = NSClassFromString(className);
         if (cls) {
-            NSLog(@"[FeishuAutoStatus] ✅ 找到状态管理类: %@", className);
+            FSLog(@"✅ 找到状态管理类: %@", className);
+            discoveredStatusClass = cls;
+            
+            if (!discoveredInfo) discoveredInfo = [NSMutableDictionary dictionary];
+            discoveredInfo[@"statusManagerClass"] = className;
+            
             return cls;
         }
     }
     
-    NSLog(@"[FeishuAutoStatus] ⚠️ 未找到已知的状态管理类，尝试运行时扫描...");
+    FSLog(@"⚠️ 未找到已知的状态管理类，开始深度扫描...");
     
     // 扫描所有已加载的类
     unsigned int classCount = 0;
     Class *classes = objc_copyClassList(&classCount);
+    
+    NSMutableArray *candidates = [NSMutableArray array];
     
     for (unsigned int i = 0; i < classCount; i++) {
         const char *className = class_getName(classes[i]);
@@ -240,53 +266,111 @@ static Class findStatusManagerClass() {
         
         // 查找包含Status的类
         if ([classNameStr containsString:@"Status"] && 
-            ([classNameStr containsString:@"Manager"] || [classNameStr containsString:@"Service"])) {
-            NSLog(@"[FeishuAutoStatus] 🔍 发现可能的状态类: %@", classNameStr);
+            ([classNameStr containsString:@"Manager"] || 
+             [classNameStr containsString:@"Service"] ||
+             [classNameStr containsString:@"Controller"])) {
+            
+            [candidates addObject:classNameStr];
+            FSLog(@"🔍 发现候选类: %@", classNameStr);
+            
+            // 分析类的方法
+            Class cls = classes[i];
+            unsigned int methodCount = 0;
+            Method *methods = class_copyMethodList(cls, &methodCount);
+            
+            for (unsigned int j = 0; j < methodCount; j++) {
+                SEL selector = method_getName(methods[j]);
+                NSString *methodName = NSStringFromSelector(selector);
+                
+                // 查找设置状态相关的方法
+                if ([methodName containsString:@"setStatus"] || 
+                    [methodName containsString:@"updateStatus"] ||
+                    [methodName containsString:@"setCustom"] ||
+                    [methodName containsString:@"updateCustom"]) {
+                    FSLog(@"  📌 发现关键方法: %@", methodName);
+                    
+                    if (!discoveredInfo) discoveredInfo = [NSMutableDictionary dictionary];
+                    if (!discoveredInfo[@"methods"]) discoveredInfo[@"methods"] = [NSMutableArray array];
+                    [discoveredInfo[@"methods"] addObject:@{
+                        @"class": classNameStr,
+                        @"method": methodName
+                    }];
+                    
+                    // 找到可能的类，记录下来
+                    if (!discoveredStatusClass) {
+                        discoveredStatusClass = cls;
+                        discoveredInfo[@"statusManagerClass"] = classNameStr;
+                        FSLog(@"✅ 自动选择类: %@", classNameStr);
+                    }
+                }
+            }
+            free(methods);
         }
     }
     
     free(classes);
-    return nil;
+    
+    if (candidates.count > 0) {
+        discoveredInfo[@"allCandidates"] = candidates;
+        FSLog(@"📋 共发现 %lu 个候选类", (unsigned long)candidates.count);
+    }
+    
+    return discoveredStatusClass;
 }
 
 // 动态调用设置状态方法
 static void setCustomStatus(NSString *text, NSString *emoji) {
     Class statusClass = findStatusManagerClass();
     if (!statusClass) {
-        NSLog(@"[FeishuAutoStatus] ❌ 无法找到状态管理类");
+        FSLog(@"❌ 无法找到状态管理类");
         return;
     }
     
     // 尝试获取单例
-    id manager = nil;
-    SEL sharedSelector = NSSelectorFromString(@"sharedInstance");
-    if ([statusClass respondsToSelector:sharedSelector]) {
-        manager = ((id (*)(id, SEL))objc_msgSend)(statusClass, sharedSelector);
-    } else {
-        sharedSelector = NSSelectorFromString(@"shared");
-        if ([statusClass respondsToSelector:sharedSelector]) {
-            manager = ((id (*)(id, SEL))objc_msgSend)(statusClass, sharedSelector);
+    id manager = discoveredStatusManager;
+    if (!manager) {
+        NSArray *singletonSelectors = @[@"sharedInstance", @"shared", @"sharedManager", @"defaultManager"];
+        
+        for (NSString *selectorName in singletonSelectors) {
+            SEL selector = NSSelectorFromString(selectorName);
+            if ([statusClass respondsToSelector:selector]) {
+                manager = ((id (*)(id, SEL))objc_msgSend)(statusClass, selector);
+                if (manager) {
+                    discoveredStatusManager = manager;
+                    FSLog(@"✅ 获取单例成功: [%@ %@]", NSStringFromClass(statusClass), selectorName);
+                    
+                    if (!discoveredInfo) discoveredInfo = [NSMutableDictionary dictionary];
+                    discoveredInfo[@"singletonMethod"] = selectorName;
+                    break;
+                }
+            }
         }
     }
     
     if (!manager) {
-        NSLog(@"[FeishuAutoStatus] ⚠️ 无法获取状态管理器单例");
-        return;
+        FSLog(@"⚠️ 无法获取状态管理器单例，尝试直接调用类方法");
+        manager = statusClass;
     }
     
     // 尝试不同的方法签名
-    NSArray *methodNames = @[
+    NSArray *twoParamMethods = @[
         @"setCustomStatus:emoji:",
         @"setCustomStatusText:emoji:",
         @"updateCustomStatus:emoji:",
         @"setStatus:emoji:",
-        @"updateStatus:emoji:"
+        @"updateStatus:emoji:",
+        @"setCustomStatusWithText:emoji:",
+        @"setStatusText:emoji:"
     ];
     
-    for (NSString *methodName in methodNames) {
+    for (NSString *methodName in twoParamMethods) {
         SEL selector = NSSelectorFromString(methodName);
         if ([manager respondsToSelector:selector]) {
-            NSLog(@"[FeishuAutoStatus] ✅ 调用方法: %@ text=%@ emoji=%@", methodName, text, emoji);
+            FSLog(@"✅ 调用方法: %@ text=%@ emoji=%@", methodName, text, emoji);
+            
+            if (!discoveredInfo) discoveredInfo = [NSMutableDictionary dictionary];
+            discoveredInfo[@"workingMethod"] = methodName;
+            discoveredInfo[@"lastStatus"] = @{@"text": text, @"emoji": emoji};
             
             NSMethodSignature *signature = [manager methodSignatureForSelector:selector];
             NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
@@ -304,26 +388,41 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
         @"setCustomStatus:",
         @"updateCustomStatus:",
         @"setStatus:",
-        @"updateStatus:"
+        @"updateStatus:",
+        @"applyStatus:",
+        @"setCustomStatusWithInfo:"
     ];
     
-    NSDictionary *statusDict = @{
-        @"text": text ?: @"",
-        @"emoji": emoji ?: @"",
-        @"statusText": text ?: @"",
-        @"statusEmoji": emoji ?: @""
-    };
+    NSArray *dictFormats = @[
+        @{@"text": text ?: @"", @"emoji": emoji ?: @""},
+        @{@"statusText": text ?: @"", @"statusEmoji": emoji ?: @""},
+        @{@"content": text ?: @"", @"icon": emoji ?: @""},
+        @{@"title": text ?: @"", @"emoji": emoji ?: @""}
+    ];
     
     for (NSString *methodName in singleParamMethods) {
         SEL selector = NSSelectorFromString(methodName);
         if ([manager respondsToSelector:selector]) {
-            NSLog(@"[FeishuAutoStatus] ✅ 调用方法: %@ dict=%@", methodName, statusDict);
-            ((void (*)(id, SEL, id))objc_msgSend)(manager, selector, statusDict);
-            return;
+            for (NSDictionary *statusDict in dictFormats) {
+                FSLog(@"✅ 尝试方法: %@ dict=%@", methodName, statusDict);
+                
+                if (!discoveredInfo) discoveredInfo = [NSMutableDictionary dictionary];
+                discoveredInfo[@"workingMethod"] = methodName;
+                discoveredInfo[@"dictFormat"] = statusDict;
+                
+                @try {
+                    ((void (*)(id, SEL, id))objc_msgSend)(manager, selector, statusDict);
+                    FSLog(@"✅ 调用成功！");
+                    return;
+                } @catch (NSException *e) {
+                    FSLog(@"⚠️ 调用失败: %@", e.reason);
+                }
+            }
         }
     }
     
-    NSLog(@"[FeishuAutoStatus] ❌ 未找到可用的设置状态方法");
+    FSLog(@"❌ 未找到可用的设置状态方法");
+    FSLog(@"📊 已发现的信息: %@", discoveredInfo);
 }
 
 // 通用Hook：捕获所有可能的状态管理类
@@ -348,15 +447,15 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     BOOL result = %orig;
     
-    NSLog(@"[FeishuAutoStatus] 🚀 飞书应用启动完成");
-    NSLog(@"[FeishuAutoStatus] 📦 Bundle ID: %@", [[NSBundle mainBundle] bundleIdentifier]);
+    FSLog(@"🚀 飞书应用启动完成");
+    FSLog(@"📦 Bundle ID: %@", [[NSBundle mainBundle] bundleIdentifier]);
     
     // 延迟启动定时器和类扫描
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        NSLog(@"[FeishuAutoStatus] 🔍 开始扫描状态管理类...");
+        FSLog(@"🔍 开始扫描状态管理类...");
         findStatusManagerClass();
         
-        NSLog(@"[FeishuAutoStatus] ⏰ 启动定时器...");
+        FSLog(@"⏰ 启动定时器...");
         startTimer();
     });
     
@@ -365,7 +464,7 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 
 - (void)applicationWillEnterForeground:(UIApplication *)application {
     %orig;
-    NSLog(@"[FeishuAutoStatus] 📱 应用进入前台");
+    FSLog(@"📱 应用进入前台");
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         startTimer();
@@ -374,13 +473,33 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 
 - (void)applicationDidEnterBackground:(UIApplication *)application {
     %orig;
-    NSLog(@"[FeishuAutoStatus] 🌙 应用进入后台，保持定时器运行");
+    FSLog(@"🌙 应用进入后台，保持定时器运行");
 }
 
 %end
 
-// Hook所有可能的ViewController来监控状态界面
+// Hook所有可能的ViewController来监控状态界面并注入设置入口
 %hook UIViewController
+
+- (void)viewDidLoad {
+    %orig;
+    
+    NSString *className = NSStringFromClass([self class]);
+    
+    // 在飞书设置页面添加入口
+    if ([className containsString:@"Setting"] || 
+        [className containsString:@"Mine"] ||
+        [className containsString:@"Profile"] ||
+        [className containsString:@"Account"]) {
+        
+        FSLog(@"📺 发现设置相关页面: %@", className);
+        
+        // 尝试添加设置入口按钮
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self addAutoStatusSettingsEntry];
+        });
+    }
+}
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
@@ -391,26 +510,77 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
     if ([className containsString:@"Status"] || 
         [className containsString:@"CustomStatus"] ||
         [className containsString:@"UserStatus"]) {
-        NSLog(@"[FeishuAutoStatus] 📺 状态相关界面出现: %@", className);
-        NSLog(@"[FeishuAutoStatus] 🔍 开始分析此界面的类结构...");
+        FSLog(@"📺 状态相关界面出现: %@", className);
+        FSLog(@"🔍 开始分析此界面的类结构...");
+        
+        if (!discoveredInfo) discoveredInfo = [NSMutableDictionary dictionary];
+        if (!discoveredInfo[@"viewControllers"]) discoveredInfo[@"viewControllers"] = [NSMutableArray array];
+        [discoveredInfo[@"viewControllers"] addObject:className];
         
         // 列出所有方法
         unsigned int methodCount = 0;
         Method *methods = class_copyMethodList([self class], &methodCount);
         
-        NSLog(@"[FeishuAutoStatus] 📋 %@ 的方法列表:", className);
-        for (unsigned int i = 0; i < methodCount && i < 20; i++) {
+        NSMutableArray *statusMethods = [NSMutableArray array];
+        for (unsigned int i = 0; i < methodCount && i < 30; i++) {
             SEL selector = method_getName(methods[i]);
             NSString *methodName = NSStringFromSelector(selector);
             if ([methodName containsString:@"status"] || 
                 [methodName containsString:@"Status"] ||
                 [methodName containsString:@"set"] ||
                 [methodName containsString:@"update"]) {
-                NSLog(@"[FeishuAutoStatus]   - %@", methodName);
+                [statusMethods addObject:methodName];
+                FSLog(@"  - %@", methodName);
             }
         }
         free(methods);
+        
+        if (statusMethods.count > 0) {
+            if (!discoveredInfo[@"vcMethods"]) discoveredInfo[@"vcMethods"] = [NSMutableDictionary dictionary];
+            discoveredInfo[@"vcMethods"][className] = statusMethods;
+        }
     }
+}
+
+%new
+- (void)addAutoStatusSettingsEntry {
+    // 尝试在导航栏添加设置按钮
+    if (self.navigationItem) {
+        UIBarButtonItem *settingsButton = [[UIBarButtonItem alloc] 
+            initWithTitle:@"⚙️ 自动状态" 
+            style:UIBarButtonItemStylePlain 
+            target:self 
+            action:@selector(openAutoStatusSettings)];
+        
+        if (self.navigationItem.rightBarButtonItems) {
+            NSMutableArray *items = [self.navigationItem.rightBarButtonItems mutableCopy];
+            [items addObject:settingsButton];
+            self.navigationItem.rightBarButtonItems = items;
+        } else {
+            self.navigationItem.rightBarButtonItem = settingsButton;
+        }
+        
+        FSLog(@"✅ 已添加设置入口按钮到: %@", NSStringFromClass([self class]));
+    }
+}
+
+%new
+- (void)openAutoStatusSettings {
+    FSLog(@"🎯 打开自动状态设置界面");
+    
+    FSAutoStatusSettingsViewController *settingsVC = [[FSAutoStatusSettingsViewController alloc] init];
+    
+    // 传递已发现的信息
+    if (discoveredInfo) {
+        [settingsVC appendLog:[NSString stringWithFormat:@"[发现] 已找到的信息: %@", discoveredInfo]];
+    }
+    
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:settingsVC];
+    nav.modalPresentationStyle = UIModalPresentationFullScreen;
+    
+    [self presentViewController:nav animated:YES completion:^{
+        FSLog(@"✅ 设置界面已打开");
+    }];
 }
 
 %end
@@ -418,7 +588,7 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
 // 构造函数
 %ctor {
     @autoreleasepool {
-        NSLog(@"[FeishuAutoStatus] 插件已加载");
+        FSLog(@"🎯 插件已加载");
         loadPreferences();
         
         // 监听偏好设置变化
@@ -431,6 +601,12 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
             CFNotificationSuspensionBehaviorCoalesce
         );
     }
+}
+
+// 手动触发状态更新（用于调试）
+void updateStatusManually() {
+    FSLog(@"🔧 [调试] 手动触发状态更新");
+    updateStatus();
 }
 
 // 析构函数
