@@ -9,64 +9,20 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-13
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq \
-          build-essential \
-          fakeroot \
-          dpkg-dev \
-          xz-utils \
-          curl \
-          git \
-          clang \
-          lld
-
-    - name: Install ldid
-      run: |
-        curl -sL https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64 -o /usr/local/bin/ldid
-        chmod +x /usr/local/bin/ldid
-        ldid 2>/dev/null || true
-
-    - name: Install Theos
-      run: |
-        set -e
-        export THEOS=~/theos
-        git clone --recursive https://github.com/theos/theos.git $THEOS
-        echo "THEOS=$THEOS" >> $GITHUB_ENV
-        echo "$THEOS/bin" >> $GITHUB_PATH
-
-    - name: Download iOS SDK
-      run: |
-        set -e
-        mkdir -p $THEOS/sdks
-        # 使用theos官方sdk仓库
-        curl -sL "https://github.com/theos/sdks/archive/refs/heads/master.tar.gz" \
-          | tar -xzf - --strip-components=1 -C $THEOS/sdks/ '*/iPhoneOS16.5.sdk' || true
-        # 备用方案：使用Procursus SDK
-        if [ ! -d "$THEOS/sdks/iPhoneOS16.5.sdk" ]; then
-          curl -sL "https://github.com/theos/sdks/releases/latest/download/iPhoneOS16.5.sdk.tar.xz" \
-            | tar -xJf - -C $THEOS/sdks/ || true
-        fi
-        # 再备用：直接下载整个sdks目录
-        if [ ! -d "$THEOS/sdks/iPhoneOS"*.sdk ]; then
-          git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
-          mv /tmp/theos-sdks/iPhoneOS*.sdk $THEOS/sdks/ || true
-        fi
-        ls -la $THEOS/sdks/
+    - name: Setup Theos
+      uses: joeycastillo/theos-action@main
+      with:
+        sdk-version: "16.5"
 
     - name: Build
       run: |
-        set -e
-        export THEOS=~/theos
-        export PATH="$THEOS/bin:$PATH"
-        make package FINALPACKAGE=1 2>&1
+        make package FINALPACKAGE=1
         ls -lh packages/
 
     - name: Upload deb
@@ -81,16 +37,5 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: packages/*.deb
-        body: |
-          ## 飞书自动状态切换插件
-
-          ### 安装
-          1. 下载.deb，用Filza安装
-          2. `killall -9 SpringBoard`
-
-          ### 查看日志
-          ```bash
-          log stream --predicate 'processImagePath contains "Lark"' | grep FeishuAutoStatus
-          ```
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
