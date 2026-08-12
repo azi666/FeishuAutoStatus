@@ -595,6 +595,16 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
             NULL,
             CFNotificationSuspensionBehaviorCoalesce
         );
+        
+        // 监听手动触发通知
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            NULL,
+            (CFNotificationCallback)updateStatusManually,
+            CFSTR("com.yourname.feishuautostatus.trigger"),
+            NULL,
+            CFNotificationSuspensionBehaviorCoalesce
+        );
     }
 }
 

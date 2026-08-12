@@ -249,8 +249,14 @@
     [self appendLog:@"[调试] 手动触发状态切换"];
     
     // 调用 Tweak.x 中的函数
-    extern void updateStatusManually(void);
-    updateStatusManually();
+    // 通过 CFNotificationCenter 发送通知给 Tweak
+    CFNotificationCenterPostNotification(
+        CFNotificationCenterGetDarwinNotifyCenter(),
+        CFSTR("com.yourname.feishuautostatus.trigger"),
+        NULL,
+        NULL,
+        YES
+    );
     
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"已触发"
                                                                    message:@"已手动触发一次状态切换\n请查看飞书是否更新状态"
