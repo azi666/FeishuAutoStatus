@@ -9,58 +9,54 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
-    
+    runs-on: macos-13
+
     steps:
-    - name: 📥 Checkout代码
-      uses: actions/checkout@v3
-    
-    - name: 🔧 安装Theos
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Theos
       run: |
-        echo "正在安装Theos..."
-        export THEOS=/opt/theos
-        sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-        
-    - name: 🔨 编译插件
+        set -e
+        export THEOS=~/theos
+        git clone --recursive https://github.com/theos/theos.git $THEOS
+        echo "THEOS=$THEOS" >> $GITHUB_ENV
+        echo "$THEOS/bin" >> $GITHUB_PATH
+
+    - name: Install iOS SDK
       run: |
-        export THEOS=/opt/theos
-        export PATH="$THEOS/bin:$PATH"
-        
-        echo "开始编译..."
-        make clean
-        make package
-        
-        echo "编译完成！"
+        set -e
+        wget -q https://github.com/theos/sdks/releases/download/master/iPhoneOS16.5.sdk.tar.xz
+        tar xf iPhoneOS16.5.sdk.tar.xz -C $THEOS/sdks/
+
+    - name: Build
+      run: |
+        set -e
+        make package FINALPACKAGE=1
         ls -lh packages/
-    
-    - name: 📦 上传deb包
-      uses: actions/upload-artifact@v3
+
+    - name: Upload deb
+      uses: actions/upload-artifact@v4
       with:
         name: FeishuAutoStatus-deb
         path: packages/*.deb
         retention-days: 30
-    
-    - name: 🎉 创建Release（仅tag触发）
+
+    - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: packages/*.deb
         body: |
           ## 飞书自动状态切换插件
-          
-          ### 安装方法
-          1. 下载.deb文件
-          2. 用Filza打开并安装
-          3. 重启SpringBoard: `killall -9 SpringBoard`
-          
-          ### 配置文件
-          `/var/mobile/Library/Preferences/com.yourname.feishuautostatus.plist`
-          
+
+          ### 安装
+          1. 下载.deb，用Filza安装
+          2. `killall -9 SpringBoard`
+
           ### 查看日志
           ```bash
           log stream --predicate 'processImagePath contains "Lark"' | grep FeishuAutoStatus
           ```
-          
-          技术支持：查看README.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
