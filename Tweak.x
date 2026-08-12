@@ -500,6 +500,11 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
         [className containsString:@"Account"]) {
         
         FSLog(@"📺 发现设置相关页面: %@", className);
+        
+        // 延迟添加按钮，确保导航栏已准备好
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.3 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            [self addAutoStatusSettingsEntry];
+        });
     }
 }
 
@@ -507,6 +512,12 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
     %orig;
     
     NSString *className = NSStringFromClass([self class]);
+    
+    // 为所有页面添加摇一摇手势来打开设置
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        FSLog(@"🎯 已启用摇一摇手势：在飞书任意界面摇动手机即可打开自动状态设置");
+    });
     
     // 检测是否是状态相关的ViewController
     if ([className containsString:@"Status"] || 
@@ -541,6 +552,16 @@ static void setCustomStatus(NSString *text, NSString *emoji) {
             if (!discoveredInfo[@"vcMethods"]) discoveredInfo[@"vcMethods"] = [NSMutableDictionary dictionary];
             discoveredInfo[@"vcMethods"][className] = statusMethods;
         }
+    }
+}
+
+// 添加摇一摇手势支持
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    %orig;
+    
+    if (motion == UIEventSubtypeMotionShake) {
+        FSLog(@"📳 检测到摇一摇手势，打开自动状态设置");
+        [self openAutoStatusSettings];
     }
 }
 
